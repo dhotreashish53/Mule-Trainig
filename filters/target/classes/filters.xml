@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" 
+xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata"
+ xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:validation="http://www.mulesoft.org/schema/mule/validation" xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:jms="http://www.mulesoft.org/schema/mule/jms"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/jms http://www.mulesoft.org/schema/mule/jms/current/mule-jms.xsd
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd">
+    <db:mysql-config name="MySQL_Configuration" host="localhost" port="3306" user="root" password="root" database="muledb" doc:name="MySQL Configuration"/>
+    <expression-filter expression="#[message.inboundProperties.username]" name="Expression" doc:name="Expression"/>
+    <flow name="employeesFlow">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/employees" allowedMethods="POST" doc:name="HTTP"/>
+        <dw:transform-message metadata:id="d68f2a8b-d40b-41c5-bb10-163e38dc0418" doc:name="Transform Message">
+            <dw:input-payload doc:sample="sample_data\json.json"/>
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+payload as :object {class:"com.mule.Employee"}]]></dw:set-payload>
+        </dw:transform-message>
+        <flow-ref name="insertFlow" doc:name="insertFlow"/>
+    </flow>
+    <flow name="insertFlow">
+        <message-filter throwOnUnaccepted="true" doc:name="Message">
+            <and-filter>
+                <expression-filter expression="#[message.inboundProperties.username]"/>
+                <expression-filter expression="#[payload.enabled]" nullReturnsTrue="true"/>
+                <payload-type-filter expectedType="com.mule.Employee"/>
+            </and-filter>
+        </message-filter>
+        <filter ref="Expression" doc:name="Filter Reference"/>
+        <db:insert config-ref="MySQL_Configuration" doc:name="Database">
+            <db:parameterized-query><![CDATA[insert into t_employee values(#[payload.id],#[payload.name],#[payload.salary],#[payload.enabled])]]></db:parameterized-query>
+        </db:insert>
+        <logger message="#[payload]" level="INFO" doc:name="Logger"/>
+    </flow>
+    <flow name="anotherflow">
+        <logger level="INFO" doc:name="Logger"/>
+    </flow>
+    <flow name="filtersFlow">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/validation" allowedMethods="POST" doc:name="HTTP"/>
+        <dw:transform-message doc:name="Transform Message">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+payload]]></dw:set-payload>
+        </dw:transform-message>
+        <validation:is-email email="#[payload.email]" doc:name="Validation"/>
+        <logger level="INFO" doc:name="Logger"/>
+    </flow>
+    <flow name="filtersFlow1">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/test" allowedMethods="GET" doc:name="HTTP"/>
+        <set-payload value="123,Jagadeesh,111111,true" doc:name="Set Payload"/>
+        <flow-ref name="insertFlow" doc:name="insertFlow"/>
+    </flow>
+
+
+</mule>

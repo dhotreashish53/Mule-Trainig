@@ -1,0 +1,74 @@
+#%RAML 1.0
+title: Jukebox API
+version: v1
+baseUri: http://localhost:8081/api
+/songs:
+  description: To get all songs from Jukebox
+  get:
+    queryParameters: 
+      limit:
+        description: to set limit on number of songs to be retrieved
+        example: 20
+        type: integer
+        required: true
+      offset:
+        description: where you want to fetch
+        example: 10
+        type: integer
+        required: true
+    responses: 
+      200:
+        body: 
+          application/json:
+            example: !include songs-get.example
+  post:
+    description: this is post request of songs. You can add a song to Jukebox
+    queryParameters: 
+      access_token:
+        type: string
+        required: true
+        example: aa-bb-cc-dd
+    body: 
+      application/json:
+        example: !include songs-post.example
+    responses: 
+      201:
+        body: 
+          application/json:
+            example: | 
+              {"message":"Song is addedd successfully"}
+  /{songid}: 
+    get: 
+      description: |
+          Get the Song
+          with songId ={songId}
+      responses:
+          200:
+            body:
+              application/json:
+                example: !include jukebox-include-song-retrieve.example
+          404:
+            body:
+              application/json:
+                example: |
+                  {"message": "song not found" }
+    /file-content:
+      get: 
+      post:
+/artists:
+  get: 
+  post: 
+  /{artistId}:
+    get: 
+    /albums:
+      get: 
+/albums:
+  get: 
+  post: 
+  /{albumId}:
+    get: 
+    /songs:
+      get:   
+  
+  
+  

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:jms="http://www.mulesoft.org/schema/mule/jms" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/jms http://www.mulesoft.org/schema/mule/jms/current/mule-jms.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd">
+    
+    <jms:activemq-connector name="Active_MQ" brokerURL="tcp://localhost:61616" validateConnections="true" doc:name="Active MQ">
+    	<receiver-threading-profile maxThreadsActive="100" maxThreadsIdle="10" threadTTL="2000" 
+    	maxBufferSize="900" poolExhaustedAction="RUN"/>
+		<dispatcher-threading-profile maxThreadsActive="100" maxThreadsIdle="10" threadTTL="2000" 
+    	maxBufferSize="900" poolExhaustedAction="RUN"/>    	
+    </jms:activemq-connector>
+    
+    <http:listener-config name="HTTP_Listener_Configuration" host="0.0.0.0" port="8081" doc:name="HTTP Listener Configuration"/>
+    <http:request-config name="HTTP_Request_Configuration" host="localhost" port="8081" doc:name="HTTP Request Configuration"/>
+    <file:connector name="File" autoDelete="true" streaming="true" validateConnections="true" doc:name="File">
+    	<receiver-threading-profile maxThreadsActive="100" maxThreadsIdle="10" threadTTL="2000" 
+    	maxBufferSize="900" poolExhaustedAction="RUN"/>    	
+    </file:connector>
+    <asynchronous-processing-strategy name="Asynchronous_Processing_Strategy" maxThreads="100" minThreads="10" threadTTL="2000" maxBufferSize="900" doc:name="Asynchronous Processing Strategy"/>
+    <flow name="pt1Flow" processingStrategy="Asynchronous_Processing_Strategy">
+        <jms:inbound-endpoint queue="inputq" connector-ref="Active_MQ" doc:name="JMS IBEP"/>
+        <set-payload value="Hello" doc:name="Set Payload Hello"/>
+        <append-string-transformer message=" To All" doc:name="Append String To All"/>
+        <set-variable variableName="test" value="test" doc:name="Flow Variable test"/>
+        <jms:outbound-endpoint queue="outputq" connector-ref="Active_MQ" doc:name="JMS OBEP"/>
+    </flow>
+    <flow name="pt1Flow1">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/test" allowedMethods="GET" doc:name="HTTP"/>
+        <set-payload value="Hello" doc:name="Set Payload Hello"/>
+        <append-string-transformer message=" To All" doc:name="Append String To All"/>
+        <set-variable variableName="test" value="test" doc:name="Flow Variable test"/>
+        <http:request config-ref="HTTP_Request_Configuration" path="/test2" method="GET" doc:name="HTTP"/>
+    </flow>
+    <flow name="pt1Flow2" processingStrategy="Asynchronous_Processing_Strategy">
+        <file:inbound-endpoint path="D:\MuleC\HSBC\LabSetup 3.8\input" responseTimeout="10000" doc:name="File" connector-ref="File"/>
+        <file:file-to-string-transformer doc:name="File to String"/>
+        <logger message="#[payload]" level="INFO" doc:name="Logger"/>
+        <jms:outbound-endpoint queue="testq" connector-ref="Active_MQ" doc:name="JMS"/>
+    </flow>
+</mule>

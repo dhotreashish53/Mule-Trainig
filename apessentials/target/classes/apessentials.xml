@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata" xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:context="http://www.springframework.org/schema/context" 
+xmlns:json="http://www.mulesoft.org/schema/mule/json" 
+xmlns:db="http://www.mulesoft.org/schema/mule/db" 
+xmlns:ws="http://www.mulesoft.org/schema/mule/ws" 
+xmlns:mulexml="http://www.mulesoft.org/schema/mule/xml" 
+xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" 
+xmlns:vm="http://www.mulesoft.org/schema/mule/vm" 
+xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" 
+xmlns:http="http://www.mulesoft.org/schema/mule/http" 
+xmlns="http://www.mulesoft.org/schema/mule/core" 
+xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
+http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd
+http://www.mulesoft.org/schema/mule/ws http://www.mulesoft.org/schema/mule/ws/current/mule-ws.xsd
+http://www.mulesoft.org/schema/mule/xml http://www.mulesoft.org/schema/mule/xml/current/mule-xml.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd
+http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-current.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd">
+  
+  
+    <http:listener-config name="HTTP_Listener_Configuration_Hello_World" host="0.0.0.0" port="8081" basePath="/ape" doc:name="HTTP Listener Configuration"/>
+    <http:request-config name="HTTP_Request_Configuration" host="localhost" port="8081" basePath="/ape" doc:name="HTTP Request Configuration"/>
+    <http:request-config name="HTTP_Request_Configuration1" host="ilt.mulesoft-training.com" port="80" basePath="/essentials/united/flights" doc:name="HTTP Request Configuration"/>
+    <http:listener-config name="HTTP_Flights_Listener_Configuration" host="0.0.0.0" port="8082" doc:name="HTTP Listener Configuration"/>
+    <http:request-config name="HTTP_Request_Configuration2" host="training-american-ws.cloudhub.io" port="80" basePath="/api/" doc:name="HTTP Request Configuration">
+        <http:raml-api-configuration location="https://anypoint.mulesoft.com/apiplatform/repository/v2/organizations/fd604b43-365c-42e8-810f-733a2b7f411f/public/apis/28703305/versions/1473830/files/root"/>
+    </http:request-config>
+    <ws:consumer-config name="Web_Service_Consumer" service="TicketServiceService" port="TicketServicePort" serviceAddress="http://training.cloudhub.io/essentials/delta" wsdlLocation="http://ilt.mulesoft-training.com/essentials/delta?wsdl" doc:name="Web Service Consumer"/>
+    <db:mysql-config name="MySQL_Configuration" host="${db.host}" port="${db.port}" user="${db.username}" password="${db.password}" database="${db.dbName}" doc:name="MySQL Configuration"/>
+    <db:template-query name="Template_Query" doc:name="Template Query">
+        <db:parameterized-query><![CDATA[select * from flights where toAirport = :dest]]></db:parameterized-query>
+        <db:in-param name="dest" defaultValue="SFO"/>
+    </db:template-query>
+    <context:property-placeholder location="classpath:app-${myEnv}.properties"/>
+    <flow name="apessentialsFlow1">
+        <http:listener config-ref="HTTP_Listener_Configuration_Hello_World" path="/hello" allowedMethods="GET" doc:name="HTTP_IBEP_Hello_World"/>
+        <set-payload value="Hello" mimeType="text/plain" doc:name="Set Payload"/>
+        <logger message="#[message.payload]" level="INFO" doc:name="Logger"/>
+    </flow>
+    <flow name="apessentialsFlow2">
+        <http:listener config-ref="HTTP_Listener_Configuration_Hello_World" path="/hello2" allowedMethods="GET" doc:name="HTTP_IBEP_Hello_World"/>
+        <set-payload value="Hello" mimeType="text/plain" doc:name="Set Payload"/>
+        <set-variable variableName="trainer" value="#[message.inboundProperties.'http.query.params'.myTrainerName]" doc:name="Flow Variable trainer"/>
+        <set-session-variable variableName="training" value="#[message.inboundProperties.'http.query.params'.myTraining]" doc:name="Session Variable training"/>
+        <copy-properties propertyName="http.query.params" doc:name="Property"/>
+        <vm:outbound-endpoint exchange-pattern="request-response" path="myq" doc:name="VM OBEP myq"/>
+        <logger level="INFO" doc:name="Final Logger"/>
+    </flow>
+    <flow name="apessentialsFlow3">
+        <vm:inbound-endpoint exchange-pattern="request-response" path="myq" doc:name="VM IBEP myq"/>
+        <append-string-transformer message=" To All" doc:name="Append String"/>
+        <set-variable variableName="numberOfParticipants" value="#[message.inboundProperties.'http.query.params'.np]" doc:name="Flow Variable numberOfParticipants"/>
+        <set-session-variable variableName="numberOfDays" value="#[message.inboundProperties.'http.query.params'.nd]" doc:name="Session Variable numberOfDays"/>
+        <logger message="#[message.payload]" level="INFO" doc:name="Logger"/>
+    </flow>
+    <flow name="apessentialsFlow">
+        <http:listener config-ref="HTTP_Listener_Configuration_Hello_World" path="/united" allowedMethods="GET" doc:name="HTTP_United_Flights_IBEP"/>
+        <set-variable variableName="destination" value="#[(message.inboundProperties.'http.query.params'.code != empty) ? message.inboundProperties.'http.query.params'.code : &quot;SFO&quot;]" doc:name="Flow Variable destination"/>
+        <http:request config-ref="HTTP_Request_Configuration1" path="/{destination}" method="GET" doc:name="HTTP_Legacy_United_OBEP">
+            <http:request-builder>
+                <http:uri-param paramName="destination" value="#[destination]"/>
+            </http:request-builder>
+        </http:request>
+        <object-to-string-transformer doc:name="Object to String"/>
+        <logger level="INFO" doc:name="Logger"/>
+    </flow>
+    <flow name="apessentialsFlow4">
+        <http:listener config-ref="HTTP_Flights_Listener_Configuration" path="/flighst/{FID}" allowedMethods="GET" doc:name="HTTP_Flights_IBEP"/>
+        <http:request config-ref="HTTP_Request_Configuration2" path="/flights/{ID}" method="GET" doc:name="HTTP_American_Flights_Legacy_API_OBEP">
+            <http:request-builder>
+                <http:uri-param paramName="ID" value="#[message.inboundProperties.'http.uri.params'.FID]"/>
+            </http:request-builder>
+        </http:request>
+        <logger level="INFO" doc:name="Logger"/>
+    </flow>
+    <flow name="apessentialsFlow5">
+        <http:listener config-ref="HTTP_Flights_Listener_Configuration" path="/delta" allowedMethods="GET" doc:name="HTTP_Delta_IBEP"/>
+        <set-variable variableName="destination" value="#[(message.inboundProperties.'http.query.params'.code) == empty ? &quot;SFO&quot; : message.inboundProperties.'http.query.params'.code]" doc:name="Flow Variable destination"/>
+        <dw:transform-message doc:name="Transform Message">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/xml
+%namespace ns0 http://soap.training.mulesoft.com/
+---
+{
+	ns0#findFlight: {
+		destination: flowVars.destination as :string
+	}
+}]]></dw:set-payload>
+        </dw:transform-message>
+        <ws:consumer config-ref="Web_Service_Consumer" operation="findFlight" doc:name="Web Service Consumer"/>
+        <dw:transform-message metadata:id="657b7d25-0dfe-46c4-b2b7-957b07d5f709" doc:name="Transform Message">
+            <dw:input-payload doc:sample="sample_data\findFlightResponse.xml"/>
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+%namespace ns0 http://soap.training.mulesoft.com/
+---
+payload.ns0#findFlightResponse.*return map ((return , indexOfReturn) -> {
+	airlineName: return.airlineName,
+	price: return.price,
+	departureDate: return.departureDate,
+	planeType: return.planeType,
+	origination: return.origin,
+	flightCode: return.code,
+	emptySeats: return.emptySeats,
+	destination: return.destination
+})]]></dw:set-payload>
+        </dw:transform-message>
+        <logger level="INFO" doc:name="Logger"/>
+    </flow>
+    <flow name="apessentialsFlow6">
+        <http:listener config-ref="HTTP_Flights_Listener_Configuration" path="/american" allowedMethods="GET" doc:name="HTTP_American_IBEP"/>
+        <set-variable variableName="destination" value="#[(message.inboundProperties.'http.query.params'.code) == empty ? &quot;SFO&quot; : message.inboundProperties.'http.query.params'.code]" doc:name="Flow Variable destination"/>
+        <db:select config-ref="MySQL_Configuration" doc:name="Database">
+            <db:template-query-ref name="Template_Query"/>
+            <db:in-param name="dest" value="#[flowVars.destination]"/>
+        </db:select>
+        <dw:transform-message metadata:id="e30d37e6-5811-4550-a4fa-e705fcd029ae" doc:name="Transform Message">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+payload map ((payload01 , indexOfPayload01) -> {
+	airlineName: payload01.airlineName,
+	price: payload01.price as :number,
+	departureDate: payload01.takeOffDate as :string,
+	planeType: payload01.planeType,
+	origination: payload01.fromAirport,
+	flightCode: payload01.code1 ++ payload01.code2,
+	emptySeats: payload01.seatsAvailable as :number 
+	when payload01.seatsAvailable != "none" otherwise 0 ,
+	destination: payload01.toAirport
+})]]></dw:set-payload>
+        </dw:transform-message>
+        <logger level="INFO" doc:name="Logger"/>
+    </flow>
+    <flow name="apessentialsFlow7">
+        <file:inbound-endpoint path="D:\MuleC\HSBC\LabSetup 3.8\input" moveToPattern="#[server.nanoTime()+message.inboundProperties.originalFilename]" moveToDirectory="D:\MuleC\HSBC\LabSetup 3.8\output" responseTimeout="10000" doc:name="File_IBEP">
+            <file:filename-regex-filter pattern=".*txt" caseSensitive="true"/>
+        </file:inbound-endpoint>
+        <file:file-to-string-transformer doc:name="File to String"/>
+        <logger message="#[payload]" level="INFO" doc:name="Logger"/>
+    </flow>
+</mule>

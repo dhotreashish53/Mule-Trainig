@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata" xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd">
+    <http:listener-config name="HTTP_Listener_Configuration" host="0.0.0.0" port="8081" doc:name="HTTP Listener Configuration"/>
+    <flow name="dwlFlow">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/flights" allowedMethods="GET" doc:name="HTTP_Html_IBEP"/>
+        <set-variable variableName="airportName" value="Jagadeesh" doc:name="Flow Variable airportName"/>
+        <parse-template location="FlightFinder.html" doc:name="Parse Template"/>
+        <logger message="#[payload]" level="INFO" doc:name="Logger"/>
+    </flow>
+    <flow name="dwlFlow1">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/flights" allowedMethods="POST" doc:name="HTTP_Search_IBEP"/>
+        <dw:transform-message doc:name="Transform Message">
+            <dw:input-payload doc:sample="sample_data\json.json"/>
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+{
+	toAirport: payload.destination,
+	operator: payload.airline,
+	fromAirport: 'MUA' ++ "ABCD"
+}]]></dw:set-payload>
+            <dw:set-variable variableName="json"><![CDATA[%dw 1.0
+%output application/json
+---
+{
+	toAirport: payload.destination,
+	operator: payload.airline,
+	fromAirport: 'MUA' ++ "ABCD"
+}]]></dw:set-variable>
+            <dw:set-variable variableName="xml"><![CDATA[%dw 1.0
+%output application/xml
+---
+flightsSearch @(destination: payload.destination, test:"abcd"): {
+	airline: payload.airline,
+	origination: "MUA"
+}]]></dw:set-variable>
+            <dw:set-variable variableName="findFlightXml"><![CDATA[%dw 1.0
+%namespace tns http://soap.training.mulesoft.com
+%output application/xml
+---
+tns#findFlight:{
+	destination: payload.destination
+}]]></dw:set-variable>
+        </dw:transform-message>
+        <logger message="#[payload]" level="INFO" doc:name="Logger"/>
+    </flow>
+    <flow name="dwlFlow2">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/static" allowedMethods="GET" doc:name="HTTP_IBEP"/>
+        <set-payload value="[{&quot;airlineName&quot;:&quot;United&quot;,&quot;price&quot;:400,&quot;departureDate&quot;:&quot;2015/03/20&quot;,&quot;planeType&quot;:&quot;Boeing 737&quot;,&quot;origination&quot;:&quot;MUA&quot;,&quot;flightCode&quot;:&quot;ER38sd&quot;,&quot;availableSeats&quot;:0,&quot;destination&quot;:&quot;SFO&quot;},{&quot;airlineName&quot;:&quot;United&quot;,&quot;price&quot;:945,&quot;departureDate&quot;:&quot;2015/09/11&quot;,&quot;planeType&quot;:&quot;Boeing 757&quot;,&quot;origination&quot;:&quot;MUA&quot;,&quot;flightCode&quot;:&quot;ER39rk&quot;,&quot;availableSeats&quot;:54,&quot;destination&quot;:&quot;SFO&quot;},{&quot;airlineName&quot;:&quot;United&quot;,&quot;price&quot;:954,&quot;departureDate&quot;:&quot;2015/02/12&quot;,&quot;planeType&quot;:&quot;Boeing 777&quot;,&quot;origination&quot;:&quot;MUA&quot;,&quot;flightCode&quot;:&quot;ER39rj&quot;,&quot;availableSeats&quot;:23,&quot;destination&quot;:&quot;SFO&quot;}]" mimeType="application/json" doc:name="Set Payload"/>
+        <dw:transform-message doc:name="Transform Message" metadata:id="77cecaa8-1bb9-4895-b269-30c9b781cb52">
+            <dw:input-payload doc:sample="sample_data\json_1.json" mimeType="application/json"/>
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+payload map ((payload01 , indexOfPayload01) -> {
+	abcd: payload01.airlineName,
+	code: payload01.flightCode,
+	cost: payload01.price,
+	emptySeats: payload01.availableSeats
+	when payload01.availableSeats != 0 
+	otherwise 10,
+	fromAirport: payload01.origination,
+	takeoffDate: payload01.departureDate
+	as :date {format:"yyyy/MM/dd"}
+	as :string {format:"dd MMM yyyy"},
+	toAirport: payload01.destination,
+	type: payload01.planeType
+} as :object {
+	class : "com.hsbc.Flight"
+})]]></dw:set-payload>
+            <dw:set-variable variableName="xml"><![CDATA[%dw 1.0
+%output application/xml
+---
+{
+	flights: {
+		(payload map ((payload01 , indexOfPayload01) -> {
+			flight: {
+				abcd: payload01.airlineName,
+				code: payload01.flightCode,
+				cost: payload01.price,
+				emptySeats: payload01.availableSeats,
+				fromAirport: payload01.origination,
+				takeoffDate: payload01.departureDate,
+				toAirport: payload01.destination,
+				type: payload01.planeType
+			}
+		}))
+	}
+}]]></dw:set-variable>
+        </dw:transform-message>
+    </flow>
+</mule>
